@@ -8,10 +8,11 @@ module vga(
     output Vsync, // delayed by 2
     output Hsync, // delayed by 2
     input write_clk,
-    input [12:0] write_addr,
+    input [7:0] write_posx,
+    input [5:0] write_posy,
     input [31:0] write_value,
     input write_enable,
-    (* ASYNC_REG = "TRUE" *) input reg [5:0] v_offset
+    input [5:0] v_offset
     );
 
 localparam W = 1280;
@@ -204,11 +205,25 @@ wire [11:0] col1, col2; // delayed by 2
 
 delay #(.BITS(24), .DELAY(1)) (vga_clk, {col1, col2}, framebuffer_value[31:8]);
 
+wire [12:0] write_addr;
+
+assign write_addr = write_posx + write_posy * 13'd160;
+
+reg [31:0] write_value_1;
+reg [12:0] write_addr_1;
+reg write_enable_1;
+
+always @(posedge write_clk) begin
+    write_value_1 <= write_value;
+    write_addr_1 <= write_addr;
+    write_enable_1 <= write_enable;
+end
+
 blockram #(
     .WIDTH(2)
 ) br (
     vga_clk, framebuffer_addr, framebuffer_value,
-    write_clk, write_addr, write_value, write_enable
+    write_clk, write_addr_1, write_value_1, write_enable_1
 );
 
 
@@ -224,39 +239,32 @@ delay #(.BITS(1), .DELAY(2)) (vga_clk, display_enable, v_pos < H & h_pos < W);
 assign {vgaRed, vgaGreen, vgaBlue} = display_enable ? rgb : 0;
 
 
+(* ASYNC_REG = "TRUE" *) reg [5:0] off_sync_0, off_sync_1, off_sync_2, off_sync_3, off_sync_4;
 reg [5:0] v_offset_current;
-(* ASYNC_REG = "TRUE" *) reg [5:0] offset_unstable;
-(* ASYNC_REG = "TRUE" *) reg [5:0] offset_stable[3:0];
 
 always @(posedge vga_clk) begin
-    offset_unstable <= v_offset;
-    offset_stable[0] <= offset_unstable;
-    offset_stable[1] <= offset_stable[0];
-    offset_stable[2] <= offset_stable[1];
-    offset_stable[3] <= offset_stable[2];
+    off_sync_0 <= v_offset;
+    off_sync_1 <= off_sync_0;
+    off_sync_2 <= off_sync_1;
+    off_sync_3 <= off_sync_2;
+    off_sync_4 <= off_sync_3;
     if (
         Vsync == 0
-        && offset_stable[0] == offset_stable[1]
-        && offset_stable[1] == offset_stable[2]
-        && offset_stable[2] == offset_stable[3]
+        && off_sync_0 == off_sync_1
+        && off_sync_1 == off_sync_2
+        && off_sync_2 == off_sync_3
+        && off_sync_3 == off_sync_4
     )
-        v_offset_current <= offset_stable[3];
+        v_offset_current <= off_sync_4;
 end
 
 
-wire [12:0] v_pos_offset_raw;
-assign v_pos_offset_raw = (v_pos >> 4) + v_offset_current;
-reg [12:0] v_pos_offset;
+wire [12:0] v_pos_offset;
 
-always @(v_pos_offset_raw) begin
-    case(1)
-    v_pos_offset_raw >= 90: v_pos_offset <= v_pos_offset_raw-90;
-    v_pos_offset_raw >= 45: v_pos_offset <= v_pos_offset_raw-45;
-    default:                v_pos_offset <= v_pos_offset_raw;
-    endcase
-end
+simplemod #(.BITS(13), .MOD(45)) mod (v_pos_offset, (v_pos >> 4) + v_offset_current);
 
 assign framebuffer_addr = (h_pos >> 3) + 13'd160*v_pos_offset;
+
 
 wire [3:0] dy_d; // delayed by 1
 wire [2:0] dx_d; // delayed by 2

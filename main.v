@@ -13,6 +13,7 @@ module main(
     input btnL,
     input btnR,
     input btnD,
+    input [15:0] sw,
     output [15:0] led
     );
 
@@ -21,7 +22,7 @@ wire feedback, clk, clk_4;
 PLLE2_BASE #(
     .CLKFBOUT_MULT(8), // Multiply value for all CLKOUT, (2-64)
     .CLKIN1_PERIOD(10.0), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
-    .CLKOUT0_DIVIDE(8),
+    .CLKOUT0_DIVIDE(5),
     .CLKOUT1_DIVIDE(32),
     .DIVCLK_DIVIDE(1),
     .STARTUP_WAIT("TRUE") // Delay DONE until PLL Locks, ("TRUE"/"FALSE")
@@ -34,18 +35,24 @@ PLLE2_BASE #(
 );
 
 wire display_ready;
-reg [3:0] display_cmd;
+wire [3:0] display_cmd;
+wire [63:0] display_param;
+
+reg [31:0] calc_instr;
+wire calc_ready;
 
 display display (
     hclk, clk,
     vgaRed, vgaGreen, vgaBlue,
     Vsync, Hsync,
-    display_cmd, {32'd0, 32'd134159}, display_ready,
-    led
+    display_cmd, display_param, display_ready
     );
 
-reg [7:0] v_pos, h_pos;
-
+calc calc (
+    clk,
+    display_cmd, display_param, display_ready,
+    calc_instr, calc_ready
+);
 
 wire btnC_pulse, btnU_pulse, btnL_pulse, btnR_pulse, btnD_pulse;
 denoise btnC_denoise (clk, btnC, btnC_pulse);
@@ -55,12 +62,18 @@ denoise btnR_denoise (clk, btnR, btnR_pulse);
 denoise btnD_denoise (clk, btnD, btnD_pulse);
 
 always @(posedge clk) begin
-    display_cmd <= 4'h0;
-    if (display_ready) begin
-        if (btnC_pulse)
-            display_cmd <= 4'h1;
-        else if (btnU_pulse)
-            display_cmd <= 4'h2;
+    calc_instr[31:28] <= 4'd0;
+    if (calc_ready) begin
+        if (btnU_pulse)
+            calc_instr <= {4'b1100, 24'd0, 4'h0};
+        else if (btnC_pulse)
+            calc_instr <= {4'b1011, sw, 8'd0, 4'h0};
+        else if (btnL_pulse)
+            calc_instr <= {4'b1000, 24'd0, 4'h0};
+        else if (btnR_pulse)
+            calc_instr <= {4'b1001, 24'd0, 4'h0};
+        else if (btnD_pulse)
+            calc_instr <= {4'b1101, 28'd0};
     end
 end
 
