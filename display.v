@@ -75,7 +75,7 @@ localparam NUMBER_SIGN  = 16'b1 << 5;
 reg [15:0] state = READY;
 reg [15:0] countdown;
 
-simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd12 + countdown);
+simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd12 + 10 - countdown);
 simplemod #(.BITS(8), .MOD(45)) mody (number_py, dy + offset);
 
 
@@ -131,30 +131,31 @@ always @(posedge clk) begin
         NUMBER_WAIT:
             if (dabbler_ready) begin
                 countdown <= 10;
-                state <= NUMBER_WRITE;
+                state <= NUMBER_SIGN;
             end else
                 state <= NUMBER_WAIT;
 
         NUMBER_WRITE: begin
-            if (countdown == 16'd1 || bcd_digits[10-countdown[3:0]+1] == 0)
-                state <= NUMBER_SIGN;
+            if (countdown == 0)
+                state <= READY;
             else
                 state <= NUMBER_WRITE;
 
             write_posy <= number_py;
             write_posx <= number_px;
-            write_value <= {12'hfff, 12'd0, 8'd48 + bcd_digits[10-countdown[3:0]]};
+            write_value <= {12'hfff, 12'd0, 8'd48 + bcd_digits[countdown[3:0]]};
             write_enable <= 1'b1;
         end
 
         NUMBER_SIGN: begin
-            state <= READY;
-            countdown <= 0;
-
-            write_posy <= number_py;
-            write_posx <= number_px;
-            write_value <= {12'hfff, 12'd0, sign ? 8'd45 : 8'd32};
-            write_enable <= 1'b1;
+            if (countdown == 1 || bcd_digits[countdown-1] != 0) begin
+                state <= NUMBER_WRITE;
+                write_posy <= number_py;
+                write_posx <= number_px;
+                write_value <= {12'hfff, 12'd0, sign ? 8'd45 : 8'd32};
+                write_enable <= 1'b1;
+            end else
+                state <= NUMBER_SIGN;
         end
 
         default: state <= UNDEF; // unreachable
