@@ -15,7 +15,7 @@ module display(
     output Vsync,
     output Hsync,
     input [3:0] cmd,
-    input [63:0] data,
+    input [47:0] data,
     output ready
     );
 
@@ -46,7 +46,7 @@ wire [31:0] num;
 wire [7:0] number_px;
 wire [7:0] number_py;
 
-assign {dx, dy, num} = data[47:0];
+assign {dx, dy, num} = data;
 
 bin_to_bcd dabbler(
     clk,
@@ -75,7 +75,7 @@ localparam NUMBER_SIGN  = 16'b1 << 5;
 reg [15:0] state = READY;
 reg [15:0] countdown;
 
-simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd12 + 10 - countdown);
+simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd8 + 10'd8 - countdown[7:0]);
 simplemod #(.BITS(8), .MOD(45)) mody (number_py, dy + offset);
 
 

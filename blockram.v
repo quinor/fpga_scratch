@@ -51,7 +51,8 @@ generate
             .WE((1<<(1<<WIDTH))-1), // Input write enable, width defined by write port depth
             .WRADDR(waddr[11-WIDTH:0]), // Input write address, width defined by write port depth
             .WRCLK(wclk), // 1-bit input write clock
-            .WREN((w_switch == i) & wenable) // 1-bit input write port enable
+            .WREN((w_switch == i) & wenable), // 1-bit input write port enable
+            .REGCE(0)
         );
     end
 endgenerate

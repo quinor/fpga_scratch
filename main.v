@@ -36,7 +36,7 @@ PLLE2_BASE #(
 
 wire display_ready;
 wire [3:0] display_cmd;
-wire [63:0] display_param;
+wire [47:0] display_param;
 
 display display (
     hclk, clk,
@@ -147,7 +147,7 @@ reg [3:0] arithmetic_instr;
 reg is_arithmetic;
 
 always @(posedge clk) begin
-    if (rollbuf) begin
+    if (|rollbuf[31:0]) begin
         if (calc_write_head + 2'b1 != calc_read_head) begin
             calc_write_head <= calc_write_head + 1;
             calc_instr_queue[calc_write_head] <= rollbuf[31:0];

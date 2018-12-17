@@ -195,7 +195,8 @@ BRAM_SDP_MACRO #(
     .WE(0), // Input write enable, width defined by write port depth
     .WRADDR(0), // Input write address, width defined by write port depth
     .WRCLK(0), // 1-bit input write clock
-    .WREN(0) // 1-bit input write port enable
+    .WREN(0), // 1-bit input write port enable
+    .REGCE(0)
 );
 
 
@@ -207,7 +208,7 @@ delay #(.BITS(24), .DELAY(1)) (vga_clk, {col1, col2}, framebuffer_value[31:8]);
 
 wire [12:0] write_addr;
 
-assign write_addr = write_posx + write_posy * 13'd160;
+assign write_addr = write_posx + (write_posy << 7) + (write_posy << 5);
 
 reg [31:0] write_value_1;
 reg [12:0] write_addr_1;
@@ -261,9 +262,9 @@ end
 
 wire [12:0] v_pos_offset;
 
-simplemod #(.BITS(13), .MOD(45)) mod (v_pos_offset, (v_pos >> 4) + v_offset_current);
+simplemod #(.BITS(13), .MOD(45)) mod (v_pos_offset, {1'b0, v_pos[15:4] + v_offset_current});
 
-assign framebuffer_addr = (h_pos >> 3) + 13'd160*v_pos_offset;
+assign framebuffer_addr = h_pos[15:3] + (v_pos_offset << 7) + (v_pos_offset << 5);
 
 
 wire [3:0] dy_d; // delayed by 1

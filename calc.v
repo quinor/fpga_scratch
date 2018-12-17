@@ -4,7 +4,7 @@
 module calc(
     input clk,
     output reg [3:0] display_cmd,
-    output reg [63:0] display_param,
+    output reg [47:0] display_param,
     input display_ready,
     input [31:0] instr_queue[3:0],
     input [1:0] queue_write_head,
@@ -53,7 +53,8 @@ BRAM_SDP_MACRO #(
     .WE(4'hf), // Input write enable, width defined by write port depth
     .WRADDR(write_addr), // Input write address, width defined by write port depth
     .WRCLK(clk), // 1-bit input write clock
-    .WREN(write_enable) // 1-bit input write port enable
+    .WREN(write_enable), // 1-bit input write port enable
+    .REGCE(0)
 );
 
 
@@ -63,6 +64,8 @@ localparam DISPLAY_PRINT    = 16'b1 << 1;
 localparam DISPLAY_CLEAR    = 16'b1 << 2;
 localparam POP_WAIT         = 16'b1 << 3;
 localparam POP              = 16'b1 << 4;
+localparam MUL_1            = 16'b1 << 5;
+localparam MUL_2            = 16'b1 << 6;
 
 reg [31:0] registers [3:0];
 reg [15:0] state = READY;
@@ -80,6 +83,8 @@ assign cv = registers[rc];
 
 reg next_ready;
 
+reg [31:0] mul_in1_t, mul_in2_t, mul_out_t;
+
 always @(posedge clk) begin
     display_cmd <= 4'h0;
     read_enable <= 0;
@@ -90,14 +95,16 @@ always @(posedge clk) begin
             case(opcode)
                 4'b0001: begin     // ADD
                     next_ready = 1;
-                    registers[ra] <= bv + cv;
+                    registers[ra] <= registers[rb] + registers[rc];
                 end
                 4'b0010: begin     // SUB
                     next_ready = 1;
-                    registers[ra] <= bv - cv;
+                    registers[ra] <= registers[rb] - registers[rc];
                 end
                 4'b0011: begin     // MUL
-                    next_ready = 1;
+                    state <= MUL_1;
+                    mul_in1_t <= bv;
+                    mul_in2_t <= cv;
                 end
                 4'b0100: begin     // DIV
                     next_ready = 1;
@@ -150,10 +157,20 @@ always @(posedge clk) begin
                 default:    next_ready = 1;
             endcase
 
+        MUL_1: begin
+            state <= MUL_2;
+            mul_out_t <= mul_in1_t * mul_in2_t;
+        end
+
+        MUL_2: begin
+            next_ready = 1;
+            registers[ra] <= mul_out_t;
+        end
+
         DISPLAY_PRINT:
             if (display_ready) begin
                 next_ready = 1;
-                display_param <= {16'd0, px, py, av};
+                display_param <= {px, py, av};
                 display_cmd <= 4'h3;
             end else
                 state <= DISPLAY_PRINT;
@@ -161,7 +178,7 @@ always @(posedge clk) begin
         DISPLAY_CLEAR:
             if (display_ready) begin
                 next_ready = 1;
-                display_param <= {16'd0, px, py, 32'd0};
+                display_param <= {px, py, 32'd0};
                 display_cmd <= 4'h2;
             end else
                 state <= DISPLAY_CLEAR;
