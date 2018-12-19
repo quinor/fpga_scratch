@@ -199,8 +199,8 @@ always @(posedge clk) begin
                                     I_POP, 4'h0
                                 };
                                 state <= ARITHMETIC_1;
-                            end
-                            else state <= READY;
+                            end else
+                                state <= READY;
                         end else begin
                             if (sw[15:10] == 6'b000001 && stack_height > 0)
                                 rollbuf <= {
@@ -263,7 +263,7 @@ always @(posedge clk) begin
                     I_NOP,
                     I_PUSH, 4'h2,
                     I_PRINT, 4'h2,
-                    arithmetic_instr, 4'h0, 4'h1, 4'h2
+                    arithmetic_instr, 16'h0, 4'h0, 4'h1, 4'h2
                 };
                 state <= READY;
             end

@@ -75,7 +75,7 @@ localparam NUMBER_SIGN  = 16'b1 << 5;
 reg [15:0] state = READY;
 reg [15:0] countdown;
 
-simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd8 + 10'd8 - countdown[7:0]);
+simplemod #(.BITS(8), .MOD(160)) modx (number_px, dx*8'd12 + 8'd10 - countdown[7:0]);
 simplemod #(.BITS(8), .MOD(45)) mody (number_py, dy + offset);
 
 
